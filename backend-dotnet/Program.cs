@@ -15,13 +15,21 @@ var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL");
 var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "https://farm-hub-git-master-mmanangan021-8141s-projects.vercel.app";
 
 if (!string.IsNullOrEmpty(cloudConnStr)) {
-    // If it's a 'postgres://' or 'postgresql://' URI, we transform it into a standard Postgres Connection String
-    if (cloudConnStr.StartsWith("postgres://") || cloudConnStr.StartsWith("postgresql://")) {
-        var uri = new Uri(cloudConnStr);
-        var userInfo = uri.UserInfo.Split(':');
-        FarmWorld.ConnStr = $"Host={uri.Host};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};Port={uri.Port};SSL Mode=Require;Trust Server Certificate=true";
-    } else {
-        FarmWorld.ConnStr = cloudConnStr;
+    try {
+        if (cloudConnStr.StartsWith("postgres://") || cloudConnStr.StartsWith("postgresql://")) {
+            var uri = new Uri(cloudConnStr);
+            var userInfo = uri.UserInfo.Split(':');
+            var dbHost = uri.Host;
+            var dbPort = uri.Port <= 0 ? 5432 : uri.Port; // Standard Postgres Port
+            var dbName = uri.AbsolutePath.TrimStart('/');
+            var dbUser = userInfo[0];
+            var dbPass = userInfo[1];
+            FarmWorld.ConnStr = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass};SSL Mode=Require;Trust Server Certificate=true";
+        } else {
+            FarmWorld.ConnStr = cloudConnStr;
+        }
+    } catch (Exception ex) {
+        Console.WriteLine($"[DB CONFIG FAIL]: {ex.Message}");
     }
 }
 
@@ -92,7 +100,9 @@ app.MapPost("/api/register", async (RegisterRequest req) => {
         insertCmd.Parameters.AddWithValue("@H", hash);
         await insertCmd.ExecuteNonQueryAsync();
         return Results.Ok(new { message = "Created" });
-    } catch (Exception ex) { Console.WriteLine(ex.Message); return Results.Problem("Error"); }
+    } catch (Exception ex) { 
+        return Results.Problem($"SQL Error: {ex.Message}"); // TRUTHFUL ERRORS FOR DEBUGGING
+    }
 });
 
 app.MapPost("/api/login", async (LoginRequest req) => {
