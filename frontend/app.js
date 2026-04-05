@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://farmhub-api.onrender.com"; // <-- PASTE YOUR RENDER URL HERE!
+const BACKEND_URL = "https://farmhub-1-k8mh.onrender.com"; // <-- Real Render URL linked!
 const API_URL = `${BACKEND_URL}/api`;
 
 document.addEventListener('DOMContentLoaded', () => {
