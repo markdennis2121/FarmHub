@@ -10,13 +10,19 @@ using ModernLoginApi;
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. DYNAMIC ENVIRONMENT CONFIGURATION
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8081";
-var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL"); // Standard for Render
-var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "http://localhost:5173"; // Default fallback
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL");
+var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "http://localhost:5173";
 
 if (!string.IsNullOrEmpty(cloudConnStr)) {
-    // If it's a 'postgres://' URI, we might need to convert it, but Npgsql often handles it if formatted right.
-    FarmWorld.ConnStr = cloudConnStr;
+    // If it's a 'postgres://' or 'postgresql://' URI, we transform it into a standard Postgres Connection String
+    if (cloudConnStr.StartsWith("postgres://") || cloudConnStr.StartsWith("postgresql://")) {
+        var uri = new Uri(cloudConnStr);
+        var userInfo = uri.UserInfo.Split(':');
+        FarmWorld.ConnStr = $"Host={uri.Host};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};Port={uri.Port};SSL Mode=Require;Trust Server Certificate=true";
+    } else {
+        FarmWorld.ConnStr = cloudConnStr;
+    }
 }
 
 // 2. Security Configuration (JWT)
