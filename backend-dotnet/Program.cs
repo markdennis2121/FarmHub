@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. DYNAMIC ENVIRONMENT CONFIGURATION
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL");
-var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "http://localhost:5173";
+var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "https://farm-hub-git-master-mmanangan021-8141s-projects.vercel.app";
 
 if (!string.IsNullOrEmpty(cloudConnStr)) {
     // If it's a 'postgres://' or 'postgresql://' URI, we transform it into a standard Postgres Connection String
