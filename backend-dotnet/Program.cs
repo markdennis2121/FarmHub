@@ -31,6 +31,41 @@ if (!string.IsNullOrEmpty(cloudConnStr)) {
     } catch (Exception ex) {
         Console.WriteLine($"[DB CONFIG FAIL]: {ex.Message}");
     }
+
+    // --- SELF-HEALING DATABASE SETUP ---
+    // This runs automatically to create tables if they don't exist.
+    try {
+        using var conn = new NpgsqlConnection(FarmWorld.ConnStr);
+        await conn.OpenAsync();
+        
+        string setupSql = @"
+            CREATE TABLE IF NOT EXISTS Users (
+                Id SERIAL PRIMARY KEY,
+                Username VARCHAR(100) UNIQUE NOT NULL,
+                Email VARCHAR(150) UNIQUE NOT NULL,
+                PasswordHash TEXT NOT NULL,
+                CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS ChatMessages (
+                Id SERIAL PRIMARY KEY,
+                Username VARCHAR(100) NOT NULL,
+                Message VARCHAR(255) NOT NULL,
+                Color VARCHAR(50) NOT NULL,
+                CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            INSERT INTO ChatMessages (Username, Message, Color)
+            SELECT 'MasterFarmer', 'Welcome to the Postgres Cloud of FarmHub!', '#fde047'
+            WHERE NOT EXISTS (SELECT 1 FROM ChatMessages WHERE Username = 'MasterFarmer');
+        ";
+
+        using var cmd = new NpgsqlCommand(setupSql, conn);
+        await cmd.ExecuteNonQueryAsync();
+        Console.WriteLine("[DB SETUP SUCCESS]: All tables are ready.");
+    } catch (Exception ex) {
+        Console.WriteLine($"[DB SETUP FAIL]: {ex.Message}");
+    }
 }
 
 // 2. Security Configuration (JWT)
