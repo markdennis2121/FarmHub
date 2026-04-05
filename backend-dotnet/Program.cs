@@ -11,20 +11,21 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. DYNAMIC ENVIRONMENT CONFIGURATION
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL");
-var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "https://farm-hub-git-master-mmanangan021-8141s-projects.vercel.app";
+var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL") ?? Environment.GetEnvironmentVariable("INTERNAL_DATABASE_URL");
 
 if (!string.IsNullOrEmpty(cloudConnStr)) {
     try {
         if (cloudConnStr.StartsWith("postgres://") || cloudConnStr.StartsWith("postgresql://")) {
-            // Npgsql can handle standard postgres:// URIs if we transform the prefix
-            var cleanValue = cloudConnStr.Replace("postgres://", "postgresql://");
-            var builderConn = new NpgsqlConnectionStringBuilder(cleanValue) {
-                SslMode = SslMode.Require,
-                TrustServerCertificate = true
-            };
-            FarmWorld.ConnStr = builderConn.ToString();
-            Console.WriteLine($"[DB CONFIG INFO]: Successfully parsed DATABASE_URL for host: {builderConn.Host}");
+            var uri = new Uri(cloudConnStr);
+            var userInfo = uri.UserInfo.Split(':');
+            var dbHost = uri.Host;
+            var dbPort = uri.Port <= 0 ? 5432 : uri.Port;
+            var dbName = uri.AbsolutePath.TrimStart('/');
+            var dbUser = userInfo[0];
+            var dbPass = userInfo.Length > 1 ? userInfo[1] : "";
+            
+            FarmWorld.ConnStr = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass};SSL Mode=Require;Trust Server Certificate=true";
+            Console.WriteLine($"[DB CONFIG SUCCESS]: Linked to host {dbHost}");
         } else {
             FarmWorld.ConnStr = cloudConnStr;
         }
