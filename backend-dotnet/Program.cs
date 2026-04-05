@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -9,8 +9,18 @@ using ModernLoginApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Security Configuration (JWT)
-var secretKey = "super-secret-key-change-me-later-to-something-longer-and-secure";
+// 1. DYNAMIC ENVIRONMENT CONFIGURATION
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8081";
+var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL"); // Standard for Render
+var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "http://localhost:5173"; // Default fallback
+
+if (!string.IsNullOrEmpty(cloudConnStr)) {
+    // If it's a 'postgres://' URI, we might need to convert it, but Npgsql often handles it if formatted right.
+    FarmWorld.ConnStr = cloudConnStr;
+}
+
+// 2. Security Configuration (JWT)
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "super-secret-key-change-me-later-to-something-longer-and-secure";
 var key = Encoding.ASCII.GetBytes(secretKey);
 
 builder.Services.AddAuthentication(options => {
@@ -34,51 +44,48 @@ builder.Services.AddAuthentication(options => {
 });
 
 builder.Services.AddAuthorization();
+
+// 3. SECURE CORS FOR VERCEL
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => 
-        policy.WithOrigins("http://localhost:8081") // <--- MUST be specific for Credentials
+        policy.WithOrigins(vercelUrl, "http://localhost:8081", "http://localhost:5173")
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials()); // <--- Required for SignalR tokens
+              .AllowCredentials());
 });
 
 builder.Services.AddSignalR();
-
-// 2. THE FARM ENGINE (BACKGROUND SERVICE)
-// This is the professional way to handle a 60FPS style global growth loop!
 builder.Services.AddHostedService<FarmEngine>();
 
 var app = builder.Build();
 
 app.UseCors();
-app.UseStaticFiles(new StaticFileOptions {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "../frontend")),
-    RequestPath = ""
-});
+app.UseStaticFiles(); // Used if hosting locally, but mostly we are API now
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// --- API ---
+// --- API (Postgres Syntax) ---
 app.MapPost("/api/register", async (RegisterRequest req) => {
     try {
-        using var conn = new SqlConnection(FarmWorld.ConnStr); await conn.OpenAsync();
-        using var checkCmd = new SqlCommand("SELECT COUNT(*) FROM Users WHERE Email = @Email OR Username = @Username", conn);
+        using var conn = new NpgsqlConnection(FarmWorld.ConnStr); await conn.OpenAsync();
+        using var checkCmd = new NpgsqlCommand("SELECT COUNT(*) FROM Users WHERE Email = @Email OR Username = @Username", conn);
         checkCmd.Parameters.AddWithValue("@Email", req.email); checkCmd.Parameters.AddWithValue("@Username", req.username);
-        if ((int)await checkCmd.ExecuteScalarAsync() > 0) return Results.BadRequest(new { message = "Taken" });
-        using var insertCmd = new SqlCommand("INSERT INTO Users (Username, Email, PasswordHash) VALUES (@U, @E, @H)", conn);
+        if ((long)await checkCmd.ExecuteScalarAsync() > 0) return Results.BadRequest(new { message = "Taken" });
+        
+        var hash = BCrypt.Net.BCrypt.HashPassword(req.password);
+        using var insertCmd = new NpgsqlCommand("INSERT INTO Users (Username, Email, PasswordHash) VALUES (@U, @E, @H)", conn);
         insertCmd.Parameters.AddWithValue("@U", req.username); insertCmd.Parameters.AddWithValue("@E", req.email);
-        insertCmd.Parameters.AddWithValue("@H", BCrypt.Net.BCrypt.HashPassword(req.password));
+        insertCmd.Parameters.AddWithValue("@H", hash);
         await insertCmd.ExecuteNonQueryAsync();
         return Results.Ok(new { message = "Created" });
-    } catch { return Results.Problem("Error"); }
+    } catch (Exception ex) { Console.WriteLine(ex.Message); return Results.Problem("Error"); }
 });
 
 app.MapPost("/api/login", async (LoginRequest req) => {
     try {
-        using var conn = new SqlConnection(FarmWorld.ConnStr); await conn.OpenAsync();
-        using var cmd = new SqlCommand("SELECT Id, Email, PasswordHash, Username FROM Users WHERE Email = @Email", conn);
+        using var conn = new NpgsqlConnection(FarmWorld.ConnStr); await conn.OpenAsync();
+        using var cmd = new NpgsqlCommand("SELECT Id, Email, PasswordHash, Username FROM Users WHERE Email = @Email", conn);
         cmd.Parameters.AddWithValue("@Email", req.email);
         using var reader = await cmd.ExecuteReaderAsync();
         if (await reader.ReadAsync()) {
@@ -100,14 +107,13 @@ app.MapPost("/api/login", async (LoginRequest req) => {
 app.MapGet("/", (HttpContext context) => { context.Response.Redirect("/index.html"); return Task.CompletedTask; });
 app.MapHub<GameHub>("/gameHub");
 
-app.Run("http://0.0.0.0:8081");
+app.Run($"http://0.0.0.0:{port}");
 
 // THE ENGINE IMPLEMENTATION
 public class FarmEngine : BackgroundService
 {
     private readonly IHubContext<GameHub> _hubContext;
     public FarmEngine(IHubContext<GameHub> hubContext) { _hubContext = hubContext; }
-
     private int _cleanupCounter = 0;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -115,23 +121,20 @@ public class FarmEngine : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             _cleanupCounter++;
-            if (_cleanupCounter >= 300) // 5 minutes (approx 300 ticks)
-            {
+            if (_cleanupCounter >= 300) {
                 _cleanupCounter = 0;
                 try {
-                    using (var conn = new SqlConnection(FarmWorld.ConnStr)) {
+                    using (var conn = new NpgsqlConnection(FarmWorld.ConnStr)) {
                         await conn.OpenAsync();
-                        // Keep things light: Delete messages older than 5 mins
-                        using (var cmd = new SqlCommand("DELETE FROM ChatMessages WHERE CreatedAt < DATEADD(minute, -5, GETDATE())", conn)) {
+                        using (var cmd = new NpgsqlCommand("DELETE FROM ChatMessages WHERE CreatedAt < NOW() - INTERVAL '5 minutes'", conn)) {
                             await cmd.ExecuteNonQueryAsync();
                         }
                     }
-                } catch { /* Silent fail for cleanup */ }
+                } catch { }
             }
-            // Nature Ticks (Growth)
+
             FarmWorld.TimeOfDay += 0.2f; 
             if (FarmWorld.TimeOfDay >= 24.0f) FarmWorld.TimeOfDay = 0.0f;
-
             List<int[]> updates = new();
             for (int x = 0; x < FarmWorld.Width; x++)
                 for (int y = 0; y < FarmWorld.Height; y++)
@@ -149,7 +152,6 @@ public class FarmEngine : BackgroundService
 
             await _hubContext.Clients.All.SendAsync("timeUpdated", FarmWorld.TimeOfDay);
             if (updates.Count > 0) await _hubContext.Clients.All.SendAsync("tilesUpdated", updates);
-
             await Task.Delay(1000, stoppingToken);
         }
     }

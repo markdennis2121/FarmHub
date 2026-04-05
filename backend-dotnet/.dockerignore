@@ -1,0 +1,10 @@
+bin/
+obj/
+Dockerfile
+.dockerignore
+.vs/
+.git/
+*.log
+run_log.txt
+run_err.txt
+final_run_err.txt

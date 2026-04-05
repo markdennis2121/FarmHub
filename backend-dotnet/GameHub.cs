@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Data.SqlClient;
+using Npgsql;
 using System.Collections.Concurrent;
 using System.Security.Claims;
 
@@ -22,7 +22,8 @@ namespace ModernLoginApi
         public const int Height = 40;
         public static byte[,] Grid = new byte[Width, Height]; 
         public static float TimeOfDay = 6.0f; // Start at 6 AM
-        public static string ConnStr = @"Data Source=MSI\SQLEXPRESS;Initial Catalog=ModernLoginDB;Integrated Security=True;TrustServerCertificate=True";
+        // Default Local/Dev string - overridden by env var in Program.cs
+        public static string ConnStr = "Host=localhost;Database=ModernLoginDB;Username=postgres;Password=password";
     }
 
     // THE FARM HUB: CLEAN SOCIAL LAYER
@@ -51,12 +52,12 @@ namespace ModernLoginApi
 
             await Clients.Caller.SendAsync("initFarm", _players.Values, FarmWorld.Width, FarmWorld.Height, flatGrid, FarmWorld.TimeOfDay, newPlayer.Coins);
             
-            // --- LOAD CHAT HISTORY ---
+            // --- LOAD CHAT HISTORY (Postgres Syntax) ---
             var history = new List<object>();
             try {
-                using (var conn = new SqlConnection(FarmWorld.ConnStr)) {
+                using (var conn = new NpgsqlConnection(FarmWorld.ConnStr)) {
                     await conn.OpenAsync();
-                    using (var cmd = new SqlCommand("SELECT TOP 30 Username, Message, Color FROM ChatMessages ORDER BY CreatedAt DESC", conn)) {
+                    using (var cmd = new NpgsqlCommand("SELECT Username, Message, Color FROM ChatMessages ORDER BY CreatedAt DESC LIMIT 30", conn)) {
                         using (var reader = await cmd.ExecuteReaderAsync()) {
                             while (await reader.ReadAsync())
                                 history.Add(new { username = reader.GetString(0), message = reader.GetString(1), color = reader.GetString(2) });
@@ -118,9 +119,9 @@ namespace ModernLoginApi
             if (message.Length > 80) message = message.Substring(0, 80);
             if (_players.TryGetValue(Context.ConnectionId, out var player)) {
                 try {
-                    using (var conn = new SqlConnection(FarmWorld.ConnStr)) {
+                    using (var conn = new NpgsqlConnection(FarmWorld.ConnStr)) {
                         await conn.OpenAsync();
-                        using (var cmd = new SqlCommand("INSERT INTO ChatMessages (Username, Message, Color) VALUES (@U, @M, @C)", conn)) {
+                        using (var cmd = new NpgsqlCommand("INSERT INTO ChatMessages (Username, Message, Color) VALUES (@U, @M, @C)", conn)) {
                             cmd.Parameters.AddWithValue("@U", player.Username);
                             cmd.Parameters.AddWithValue("@M", message);
                             cmd.Parameters.AddWithValue("@C", player.Color);
