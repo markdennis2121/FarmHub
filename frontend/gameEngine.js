@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://farmhub-1-k8mh.onrender.com"; // <-- Swapped back to match your console!
+const BACKEND_URL = "https://farmhub-4t15.onrender.com"; // <-- NEW Live URL from logs!
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const coinCounterEl = document.getElementById('coinCounter');

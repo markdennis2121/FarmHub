@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://farmhub-1-k8mh.onrender.com"; // <-- Swapped back to match your console!
+const BACKEND_URL = "https://farmhub-4t15.onrender.com"; // <-- NEW Live URL from logs!
 const API_URL = `${BACKEND_URL}/api`;
 
 document.addEventListener('DOMContentLoaded', () => {
