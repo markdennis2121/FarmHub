@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Arena - Welcome Farmer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-glow"></div>
+    
+    <div class="login-container">
+        <div class="glass-card">
+            <div class="card-header">
+                <h1 id="mainTitle">FarmHub Valley</h1>
+                <p id="subTitle">Enter the real-time social farming arena</p>
+            </div>
+
+            <!-- LOGIN FORM -->
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" placeholder="farmer@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="submitBtn" class="primary-btn">
+                    <span class="btn-text">Sign In</span>
+                    <div class="spinner hidden"></div>
+                </button>
+                <p class="toggle-text">Don't have an account? <a href="#" id="showRegister">Sign Up</a></p>
+            </form>
+
+            <!-- REGISTER FORM (Hidden by default) -->
+            <form id="registerForm" class="hidden">
+                <div class="input-group">
+                    <label for="regUsername">Farmer Username</label>
+                    <input type="text" id="regUsername" placeholder="StardewMaster" required>
+                </div>
+                <div class="input-group">
+                    <label for="regEmail">Email Address</label>
+                    <input type="email" id="regEmail" placeholder="newfarmer@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="regSubmitBtn" class="primary-btn">
+                    <span class="btn-text">Create Account</span>
+                    <div class="spinner hidden"></div>
+                </button>
+                <p class="toggle-text">Already a farmer? <a href="#" id="showLogin">Log In</a></p>
+            </form>
+
+            <div id="errorMessage" class="error-banner">Invalid credentials</div>
+            <div id="successMessage" class="success-banner">Account created! Log in now.</div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

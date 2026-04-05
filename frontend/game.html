@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FarmHub V3.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; background-color: #0ea5e9; color: white; font-family: 'Inter', sans-serif; }
+        #gameCanvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+        
+        #timeOverlay { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; background-color: rgba(0, 0, 50, 0); transition: background-color 1s linear; z-index: 5; }
+
+        #ui { position: absolute; top: 24px; left: 24px; pointer-events: none; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
+        .hud { background: rgba(22, 101, 52, 0.85); padding: 20px 30px; border-radius: 16px; border: 4px solid #14532d; backdrop-filter: blur(8px); box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        h1 { margin: 0 0 10px 0; font-size: 28px; font-weight: 800; color: #fde047; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        p { margin: 0 0 6px 0; font-size: 15px; color: #dcfce7; font-weight: 600; }
+        .accent { color: #86efac; font-weight: 800; }
+        
+        #economyPanel { background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1); }
+        #coinCounter { font-size: 24px; color: #facc15; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+
+        /* The Shop Modal (Hidden by default) */
+        #shopOverlay {
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center; z-index: 200;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #shopOverlay.show { opacity: 1; pointer-events: auto; }
+        .shop { background: #0f172a; padding: 40px; border-radius: 24px; border: 2px solid #38bdf8; box-shadow: 0 16px 64px rgba(0,0,0,0.8); min-width: 400px;}
+        .shop h2 { margin: 0 0 5px 0; color: #38bdf8; font-size: 32px; text-transform: uppercase; }
+        .shop p.subtitle { color: #94a3b8; margin-bottom: 30px; }
+        .shop-item { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; border: 1px solid transparent;}
+        .shop-item:hover { background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8;}
+        .item-info { display: flex; align-items: center; gap: 15px; font-size: 20px; font-weight: bold; }
+        .item-price { color: #facc15; font-weight: bold; font-size: 20px;}
+
+        /* The Hotbar */
+        #hotbar {
+            position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 100;
+            display: flex; gap: 12px; background: rgba(0, 0, 0, 0.6); padding: 16px; border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+        }
+        .slot {
+            width: 60px; height: 60px; background: rgba(255,255,255,0.1); border-radius: 12px;
+            display: flex; justify-content: center; align-items: center; font-size: 30px;
+            border: 3px solid transparent; position: relative; transition: 0.2s;
+        }
+        .slot.active { border-color: #fde047; background: rgba(253, 224, 71, 0.2); transform: translateY(-10px); box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .slot-key {
+            position: absolute; top: -10px; left: -10px; background: white; color: black;
+            font-size: 14px; font-weight: bold; width: 24px; height: 24px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; border: 2px solid #22c55e;
+        }
+
+        /* Floating interaction prompt */
+        #interactionPrompt {
+            position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); padding: 12px 24px; border-radius: 30px; font-size: 18px; font-weight: bold;
+            color: white; border: 2px solid white; display: none; z-index: 100; pointer-events: none;
+        }
+
+        /* Chat System */
+        #chatBox { position: absolute; top: 24px; right: 24px; width: 350px; height: 250px; background: rgba(15, 23, 42, 0.8); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; pointer-events: auto; z-index: 10; backdrop-filter: blur(4px); }
+        #chatMessages { flex: 1; padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        .chat-line { font-size: 14px; color: white; display:flex; gap: 8px; text-shadow: 0 1px 2px black; }
+        .chat-color { border-radius: 50%; width: 12px; height: 12px; display: inline-block; margin-top: 2px; }
+        #chatInput { background: rgba(0,0,0,0.5); border: none; padding: 12px; color: white; font-family: 'Inter'; border-radius: 0 0 12px 12px; outline: none; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+</head>
+<body>
+    <div id="timeOverlay"></div>
+
+    <div id="ui">
+        <div class="hud">
+            <h1>FarmHub V3</h1>
+            <p>👨‍🌾 <span class="accent">WASD</span> to walk out and explore</p>
+            <p>🎒 Select tool from Hotbar</p>
+            <p>🧙‍♂️ Find the Merchant to buy items</p>
+            
+            <div id="economyPanel">
+                <div id="coinCounter">🪙 100</div>
+                <p id="playerCount" style="margin-top: 5px; font-size: 12px; color: #94a3b8;">Farmers: connecting...</p>
+                <p id="clockDisplay" style="margin-top: 5px; font-size: 12px; color: #94a3b8;">Time: 6:00 AM</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Hotbar -->
+    <div id="hotbar">
+        <div class="slot active" id="slot-1"><div class="slot-key">1</div>🟫</div>
+        <div class="slot" id="slot-2"><div class="slot-key">2</div>🌱</div>
+        <div class="slot" id="slot-3"><div class="slot-key">3</div>🧤</div>
+        <div class="slot" id="slot-4"><div class="slot-key">4</div>🚿</div>
+    </div>
+
+    <div id="interactionPrompt">Press [E] to Shop</div>
+
+    <!-- Fullscreen Shop Overlay -->
+    <div id="shopOverlay">
+        <div class="shop">
+            <h2>The Emerald Merchant</h2>
+            <p class="subtitle">"I've got the finest goods in the Valley. Press [ESC] to leave."</p>
+            <div class="shop-item" id="btnBuySprinkler">
+                <div class="item-info"><span>🚿</span><span>Automated Sprinkler</span></div>
+                <div class="item-price">🪙 50</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chatBox">
+        <div id="chatMessages"><div class="chat-line"><span style="color:#38bdf8; font-weight:bold;">SYSTEM:</span> Welcome to FarmHub Valley.</div></div>
+        <input type="text" id="chatInput" placeholder="Press Enter to chat..." autocomplete="off">
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    
+    <script src="gameEngine.js"></script>
+</body>
+</html>

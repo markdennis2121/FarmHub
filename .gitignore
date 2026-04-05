@@ -1,0 +1,33 @@
+# .NET (Binaries and User files)
+[Bb]in/
+[Oo]bj/
+*.exe
+*.dll
+*.pdb
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# Node (Frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# SQL Server
+*.bak
+*.mdf
+*.ldf
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Scratch / Logs
+*.log
+run_log.txt
+final_run_err.txt
+run_err.txt
