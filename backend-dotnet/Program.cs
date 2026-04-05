@@ -17,14 +17,14 @@ var vercelUrl = Environment.GetEnvironmentVariable("VERCEL_URL") ?? "https://far
 if (!string.IsNullOrEmpty(cloudConnStr)) {
     try {
         if (cloudConnStr.StartsWith("postgres://") || cloudConnStr.StartsWith("postgresql://")) {
-            var uri = new Uri(cloudConnStr);
-            var userInfo = uri.UserInfo.Split(':');
-            var dbHost = uri.Host;
-            var dbPort = uri.Port <= 0 ? 5432 : uri.Port; // Standard Postgres Port
-            var dbName = uri.AbsolutePath.TrimStart('/');
-            var dbUser = userInfo[0];
-            var dbPass = userInfo[1];
-            FarmWorld.ConnStr = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass};SSL Mode=Require;Trust Server Certificate=true";
+            // Npgsql can handle standard postgres:// URIs if we transform the prefix
+            var cleanValue = cloudConnStr.Replace("postgres://", "postgresql://");
+            var builderConn = new NpgsqlConnectionStringBuilder(cleanValue) {
+                SslMode = SslMode.Require,
+                TrustServerCertificate = true
+            };
+            FarmWorld.ConnStr = builderConn.ToString();
+            Console.WriteLine($"[DB CONFIG INFO]: Successfully parsed DATABASE_URL for host: {builderConn.Host}");
         } else {
             FarmWorld.ConnStr = cloudConnStr;
         }
