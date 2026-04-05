@@ -1,3 +1,4 @@
+const BACKEND_URL = "https://farmhub-api.onrender.com"; // <-- PASTE YOUR RENDER URL HERE!
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const coinCounterEl = document.getElementById('coinCounter');
@@ -144,7 +145,7 @@ btnBuySprinkler.addEventListener('click', () => {
 
 // --- SignalR with JWT ---
 const connection = new signalR.HubConnectionBuilder()
-    .withUrl("http://localhost:8081/gameHub", {
+    .withUrl(`${BACKEND_URL}/gameHub`, {
         accessTokenFactory: () => token // <--- Pass the real cryptographic token
     })
     .withAutomaticReconnect() // <--- Fix "a lot of error" on blips
