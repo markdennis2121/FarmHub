@@ -51,10 +51,17 @@ builder.Services.AddAuthentication(options => {
 
 builder.Services.AddAuthorization();
 
-// 3. SECURE CORS FOR VERCEL
+// 3. SECURE CORS FOR VERCEL (DYNAMIC & ROBUST)
 builder.Services.AddCors(options => {
     options.AddDefaultPolicy(policy => 
-        policy.WithOrigins(vercelUrl, "http://localhost:8081", "http://localhost:5173")
+        policy.SetIsOriginAllowed(origin => 
+              {
+                  if (string.IsNullOrWhiteSpace(origin)) return false;
+                  var host = new Uri(origin).Host;
+                  return host.Equals("localhost") || 
+                         host.EndsWith(".vercel.app") || 
+                         host.Contains("vcl.how");
+              })
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());
