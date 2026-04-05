@@ -16,23 +16,26 @@ var cloudConnStr = Environment.GetEnvironmentVariable("DATABASE_URL") ?? Environ
 if (!string.IsNullOrEmpty(cloudConnStr)) {
     try {
         if (cloudConnStr.StartsWith("postgres://") || cloudConnStr.StartsWith("postgresql://")) {
+            // Use Npgsql's native URI handling via ConnectionStringBuilder if possible, 
+            // or fallback to manual URI parsing for older string formats.
             var uri = new Uri(cloudConnStr);
             var userInfo = uri.UserInfo.Split(':');
             var dbHost = uri.Host;
             var dbPort = uri.Port <= 0 ? 5432 : uri.Port;
             var dbName = uri.AbsolutePath.TrimStart('/');
-            var dbUser = userInfo[0];
-            var dbPass = userInfo.Length > 1 ? userInfo[1] : "";
-            
-            FarmWorld.ConnStr = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass};SSL Mode=Require;Trust Server Certificate=true";
-            Console.WriteLine($"[DB CONFIG SUCCESS]: Linked to host {dbHost}");
+            var dbUser = uri.UserInfo.Contains(":") ? userInfo[0] : uri.UserInfo;
+            var dbPass = uri.UserInfo.Contains(":") ? userInfo[1] : "";
+
+            // Force SSL for Supabase/Cloud providers
+            FarmWorld.ConnStr = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass};SSL Mode=Require;Trust Server Certificate=true;Pooling=true;";
+            Console.WriteLine($"[DB CONFIG SUCCESS]: Supabase/Cloud Database Linked: {dbHost}");
         } else {
             FarmWorld.ConnStr = cloudConnStr;
         }
     } catch (Exception ex) {
         Console.WriteLine($"[DB CONFIG FAIL]: {ex.Message}");
     }
-
+}
     // --- SELF-HEALING DATABASE SETUP ---
     // This runs automatically to create tables if they don't exist.
     try {
