@@ -136,7 +136,20 @@ app.MapPost("/api/register", async (RegisterRequest req) => {
         await insertCmd.ExecuteNonQueryAsync();
         return Results.Ok(new { message = "Created" });
     } catch (Exception ex) { 
-        return Results.Problem($"SQL Error: {ex.Message}"); // TRUTHFUL ERRORS FOR DEBUGGING
+        return Results.Json(new { message = $"SQL Error: {ex.Message}" }, statusCode: 500);
+    }
+});
+
+app.MapGet("/api/test-db", async () => {
+    if (string.IsNullOrEmpty(FarmWorld.ConnStr)) return Results.Problem("Connection String Empty! Check Environment Variables.");
+    try {
+        using var conn = new NpgsqlConnection(FarmWorld.ConnStr);
+        await conn.OpenAsync();
+        using var cmd = new NpgsqlCommand("SELECT 1", conn);
+        await cmd.ExecuteScalarAsync();
+        return Results.Ok(new { status = "Connected", db = FarmWorld.ConnStr.Split(';')[0] });
+    } catch (Exception ex) {
+        return Results.Json(new { status = "Error", error = ex.Message }, statusCode: 500);
     }
 });
 
