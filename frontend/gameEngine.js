@@ -1,4 +1,4 @@
-const BACKEND_URL = "https://farmhub-1-k8mh.onrender.com"; // <-- Real Render URL linked!
+const BACKEND_URL = "https://farmhub-4tl5.onrender.com"; // <-- Real Render URL linked!
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const coinCounterEl = document.getElementById('coinCounter');
